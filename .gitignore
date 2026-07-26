@@ -1,0 +1,101 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments and local tooling
+.venv/
+.venv-test/
+venv/
+env/
+.tools/
+node_modules/
+
+# Local configuration
+.env
+.env.*
+!.env.example
+vasp-env.sh
+vasp-env.local.sh
+*.local.sh
+
+# Runtime state and generated workspaces
+data/
+runtime/
+workspace/
+results/
+job_logs/
+runtime-ui.log
+
+# Build and release artifacts
+dist/
+build/
+*.egg-info/
+*.tar.gz
+*.tar
+*.tar.bz2
+*.tar.xz
+*.tgz
+*.zip
+*.7z
+*.whl
+
+# VASP / scientific run outputs and licensed inputs
+**/POTCAR
+**/POTCAR.*
+**/POTCAR_*
+**/vaspout.h5
+**/vaspwave.h5
+**/WAVEDER
+**/TMPCAR
+**/PARCHG*
+**/WAVECAR
+**/CHG
+**/CHGCAR
+**/AECCAR*
+**/ELFCAR
+**/LOCPOT
+**/PROCAR
+**/vasprun.xml
+**/OUTCAR
+**/OSZICAR
+**/DOSCAR
+**/EIGENVAL
+**/IBZKPT
+**/XDATCAR
+**/PCDAT
+**/REPORT
+**/ELASTIC_TENSOR
+**/*.log
+
+# Local review/install reports
+vasp-input-studio-*-report.md
+
+# Machine-local UI regression snapshots
+docs/ui-baseline-*.md
+docs/ui-baseline-latest.json
+
+# Local databases and AiiDA state
+*.sqlite
+*.sqlite3
+.aiida/
+
+# Local test sandboxes
+install-test*/
+.tox/
+.nox/
+.ipynb_checkpoints/
+
+# Editor and OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~

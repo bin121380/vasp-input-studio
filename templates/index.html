@@ -1,0 +1,891 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ app_name }}</title>
+    <link rel="stylesheet" href="/static/styles.css?v={{ asset_version }}">
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">VS</div>
+          <div>
+            <h1>{{ app_name }}</h1>
+            <p>Integrated materials cockpit for VASP workflows</p>
+          </div>
+        </div>
+
+        <div class="page-nav" style="display: none;">
+          <button class="ghost active" data-view-target="workbench">Workbench</button>
+          <button class="ghost" data-view-target="project-lab">Project Lab</button>
+        </div>
+
+        <section class="panel mode-panel">
+          <div class="panel-head">
+            <h2>Interface Mode</h2>
+            <span id="mode-chip" class="chip primary">beginner</span>
+          </div>
+          <div class="editor-buttons">
+            <button id="mode-beginner" type="button" class="ghost active">Beginner</button>
+            <button id="mode-advanced" type="button" class="ghost">Expert Override</button>
+          </div>
+          <p id="mode-note" class="small-label">Beginner mode keeps only the basic workflow and hides most technical panels. You still need to review generated inputs before serious runs.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Overview</h2>
+          <div id="overview" class="stack compact"></div>
+        </section>
+
+        <section class="panel" data-complexity="advanced">
+          <div class="panel-head">
+            <h2>Backend</h2>
+            <span id="backend-chip" class="chip">unknown</span>
+          </div>
+          <div id="backend-summary" class="stack compact"></div>
+          <div class="panel-head" style="margin-top: 0.9rem;">
+            <h2>Installation Audit</h2>
+            <span id="installation-audit-chip" class="chip audit-review">review</span>
+          </div>
+          <div id="installation-audit" class="stack compact"></div>
+          <p id="installation-audit-note" class="small-label"></p>
+        </section>
+
+        <section class="panel grow">
+          <div class="panel-head">
+            <h2>Systems</h2>
+            <div class="editor-buttons">
+              <button id="add-new-project" class="ghost">+ New Project</button>
+              <button id="refresh-systems" class="ghost">Refresh</button>
+            </div>
+          </div>
+          <div class="systems-toolbar">
+            <input id="systems-search" type="search" placeholder="Search systems">
+            <label class="systems-toggle">
+              <input id="systems-hide-utility" type="checkbox" checked>
+              <span>Hide test/demo</span>
+            </label>
+          </div>
+          <p id="systems-summary" class="small-label">Loading systems...</p>
+          <div id="systems-list" class="stack list"></div>
+        </section>
+      </aside>
+
+      <main class="workspace">
+        <header class="workspace-head">
+          <div class="hero-panel">
+            <div class="hero-copy">
+              <p class="eyebrow">Research Cockpit</p>
+              <h2 id="system-title">Select a system</h2>
+              <p id="system-subtitle" class="hero-subtitle">
+                Pick a material from the sidebar to inspect structures, tune inputs, and submit calculations from one place.
+              </p>
+              <div class="hero-actions">
+                <span id="selected-name" class="chip primary">none</span>
+                <span id="workspace-mode-chip" class="chip">Local personal workbench</span>
+              </div>
+            </div>
+          </div>
+          <div class="hero-metrics">
+            <div class="hero-metric">
+              <div id="hero-lattice-label" class="metric-label">Lattice a</div>
+              <strong id="hero-lattice">n/a</strong>
+              <div id="hero-lattice-note" class="hero-metric-note"></div>
+            </div>
+            <div class="hero-metric">
+              <div class="metric-label">Density</div>
+              <strong id="hero-density">n/a</strong>
+            </div>
+            <div class="hero-metric">
+              <div class="metric-label">Moment</div>
+              <strong id="hero-moment">n/a</strong>
+            </div>
+            <div class="hero-metric">
+              <div class="metric-label">Workflow</div>
+              <strong id="hero-workflow">0 / 0 done</strong>
+            </div>
+          </div>
+        </header>
+
+        <section id="view-workbench" class="page-view">
+          <div class="workflow-strip panel">
+            <div class="panel-head">
+              <div class="panel-title-group">
+                <h2>Workflow Navigator</h2>
+                <p>Follow the calculation order and open one stage at a time.</p>
+              </div>
+              <span id="workflow-chip" class="chip primary">overview</span>
+            </div>
+            <div id="workflow-tabs" class="workflow-tabs">
+              <button type="button" class="workflow-tab active" data-flow-target="overview">Overview</button>
+              <button type="button" class="workflow-tab" data-flow-target="setup">Setup</button>
+              <button type="button" class="workflow-tab" data-flow-target="relax">Relax</button>
+              <button type="button" class="workflow-tab" data-flow-target="scf">SCF</button>
+              <button type="button" class="workflow-tab" data-flow-target="dos">DOS</button>
+              <button type="button" class="workflow-tab beginner-advanced" data-flow-target="converge">Converge</button>
+              <button type="button" class="workflow-tab" data-flow-target="band">Band</button>
+              <button type="button" class="workflow-tab" data-flow-target="elastic">Elastic</button>
+              <button type="button" class="workflow-tab" data-flow-target="charge">Charge</button>
+              <button type="button" class="workflow-tab" data-flow-target="phonon">Phonon</button>
+            </div>
+          </div>
+
+          <div id="beginner-guide-panel" class="panel" data-complexity="beginner-only">
+            <div class="panel-head">
+              <div class="panel-title-group">
+                <h2>Guided Start</h2>
+                <p>Use this as an exploratory starting path if you do not want to edit VASP files directly.</p>
+              </div>
+              <span class="chip primary">exploratory path</span>
+            </div>
+            <div class="beginner-grid">
+              <div class="metric">
+                <div class="metric-label">What should I do now?</div>
+                <div id="beginner-next-title" class="metric-value">Create or select a project</div>
+                <div id="beginner-next-note" class="small-label">Start from Project Lab if you have a new CIF or POSCAR.</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">Current starting settings</div>
+                <div id="beginner-defaults" class="metric-value">No project selected yet</div>
+                <div class="small-label">These are plain-language starting values, not guaranteed production settings. Review Setup and the generated input bundle before submitting.</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">One-click action</div>
+                <div class="editor-buttons">
+                  <button id="beginner-open-project" type="button" class="ghost">Open Project Lab</button>
+                  <button id="beginner-open-setup" type="button" class="ghost">Open Setup</button>
+                  <button id="beginner-run-next" type="button">Check and Run Next Step</button>
+                </div>
+                <p id="beginner-action-status" class="small-label">No action requested yet.</p>
+              </div>
+            </div>
+          </div>
+
+          <article id="installation-banner-panel" class="panel installation-banner" data-flow-panels="overview,setup">
+            <div class="panel-head">
+              <div class="panel-title-group">
+                <h2 id="installation-banner-title">Installation Check</h2>
+                <p id="installation-banner-summary">Checking runtime integrations for this installation.</p>
+              </div>
+              <span id="installation-banner-chip" class="chip audit-review">review</span>
+            </div>
+            <div id="installation-banner-items" class="stack compact"></div>
+            <p id="installation-banner-note" class="small-label">Open Backend for the full environment breakdown.</p>
+          </article>
+
+          <section class="grid">
+            <article class="panel full-span" data-flow-panels="relax,scf,dos,converge,band,elastic,charge,phonon">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2 id="step-focus-title">Step Focus</h2>
+                  <p id="step-focus-summary">Select a workflow stage to see its prerequisites, inputs, and expected outputs.</p>
+                </div>
+                <span id="step-focus-chip" class="chip">idle</span>
+              </div>
+              <div class="step-focus-grid">
+                <div class="metric">
+                  <div class="metric-label">Stage Guidance</div>
+                  <div id="step-focus-guidance" class="metric-value">Choose a stage to focus the workspace.</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">Ready Checks</div>
+                  <div id="step-focus-checks" class="stack compact"></div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">Relevant Files</div>
+                  <div id="step-focus-files" class="stack compact"></div>
+                </div>
+              </div>
+            </article>
+
+            <article class="panel wide" data-flow-panels="overview,setup,relax,elastic,phonon">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2>3D Structure</h2>
+                  <p>Inspect the current POSCAR cell and atom layout.</p>
+                </div>
+                <span class="chip">orbit viewer</span>
+              </div>
+              <div class="structure-frame">
+                <canvas id="structure-canvas" class="structure-canvas"></canvas>
+                <div class="canvas-overlay">
+                  <span class="small-label">Drag to rotate, wheel to zoom, compare symmetry before submission.</span>
+                  <span class="chip primary">lattice + atoms</span>
+                </div>
+              </div>
+            </article>
+
+            <article class="panel" data-flow-panels="overview,relax,scf,dos,converge,band,elastic,charge,phonon">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2>Summary</h2>
+                  <p>Core reference metrics for the selected system.</p>
+                </div>
+              </div>
+              <div id="summary-grid" class="summary-grid"></div>
+            </article>
+
+            <article id="workflow-status-panel" class="panel" data-flow-panels="overview,relax,scf,dos,converge,band,elastic,charge,phonon">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2>Workflow Status</h2>
+                  <p>Track each step before launching the next one.</p>
+                </div>
+              </div>
+              <div id="step-status" class="step-grid compact-workflow-status"></div>
+            </article>
+
+            <article class="panel wide" data-flow-panels="overview,relax,scf,dos,converge,band,elastic,charge,phonon">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2 id="result-highlights-title">Result Highlights</h2>
+                  <p id="result-highlights-note">Surface the most important completed outputs without opening raw files.</p>
+                </div>
+              </div>
+              <div id="result-highlights" class="summary-grid"></div>
+            </article>
+
+            <article class="panel wide" data-flow-panels="relax,scf,dos,converge,band,elastic,charge,phonon">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2>Primitive Cell</h2>
+                  <p id="primitive-cell-note">Generate a primitive cell from the relaxed CONTCAR when you want to inspect it or adopt it into a dedicated child project.</p>
+                </div>
+                <span id="primitive-cell-chip" class="chip">primitive | review</span>
+              </div>
+              <div class="editor-buttons">
+                <button id="generate-primitive-cell" type="button" class="ghost">Generate Primitive Cell</button>
+              </div>
+              <p id="primitive-cell-status" class="small-label">Complete relax first so runs/relax/CONTCAR is available for primitive-cell conversion.</p>
+              <div id="primitive-cell" class="stack compact">
+                <div class="small-label">No primitive-cell summary is available yet.</div>
+              </div>
+            </article>
+
+            <article class="panel wide" data-flow-panels="band">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2>Band Visualization</h2>
+                  <p id="band-visualization-note">Render the current band-path result or hybrid-band artifacts without opening raw files.</p>
+                </div>
+                <span id="band-visualization-chip" class="chip">review</span>
+              </div>
+              <div id="band-visualization" class="band-visualization-shell">
+                <div class="small-label">No band result is available yet.</div>
+              </div>
+            </article>
+
+            <article class="panel wide" data-flow-panels="dos">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2>DOS Visualization</h2>
+                  <p id="dos-visualization-note">Render the current total DOS directly from DOSCAR without opening raw files.</p>
+                </div>
+                <span id="dos-visualization-chip" class="chip">review</span>
+              </div>
+              <div id="dos-visualization" class="band-visualization-shell">
+                <div class="small-label">No DOS result is available yet.</div>
+              </div>
+            </article>
+
+            <article class="panel wide" data-flow-panels="phonon">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2>Phonon Dispersion + DOS</h2>
+                  <p id="phonon-visualization-note">Render the current phonon dispersion with element-resolved phonon DOS on a shared frequency axis.</p>
+                </div>
+                <span id="phonon-visualization-chip" class="chip">review</span>
+              </div>
+              <div id="phonon-visualization" class="band-visualization-shell">
+                <div class="small-label">No phonon result is available yet.</div>
+              </div>
+            </article>
+
+            <article class="panel wide" data-flow-panels="dos">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2>Element PDOS</h2>
+                  <p id="dos-artifacts-note">Generate element-resolved PDOS from the current DOSCAR without rerunning VASP.</p>
+                </div>
+                <span id="dos-artifacts-chip" class="chip">review</span>
+              </div>
+              <div class="editor-buttons">
+                <button id="generate-pdos" type="button" class="ghost">Generate Element PDOS</button>
+              </div>
+              <p id="dos-artifacts-status" class="small-label">Open the DOS stage after SCF or DOS completes, then generate PDOS from the existing DOSCAR.</p>
+              <div id="dos-artifacts" class="stack compact">
+                <div class="small-label">No PDOS artifacts are available yet.</div>
+              </div>
+            </article>
+
+            <article class="panel" data-flow-panels="overview,converge,dos" data-complexity="advanced">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2>System Audit</h2>
+                  <p>Check whether the current project is really ready for production submission.</p>
+                </div>
+                <span id="audit-chip" class="chip">review</span>
+              </div>
+              <div id="system-audit" class="stack compact"></div>
+            </article>
+
+            <article class="panel" data-flow-panels="overview" data-complexity="advanced">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2>Report Snapshot</h2>
+                  <p>Compact bars for the current workflow and key property outputs.</p>
+                </div>
+              </div>
+              <div id="report-snapshot" class="stack compact"></div>
+            </article>
+
+            <article class="panel" data-flow-panels="relax,scf,dos,converge,band,elastic,charge,phonon">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2 id="submitter-title">Unified Submitter</h2>
+                  <p id="submitter-note">Check job parameters, target profile, and submit current active stage.</p>
+                </div>
+              </div>
+              <div class="form-grid">
+                <label>
+                  <span>Step</span>
+                  <select id="submit-step">
+                    <option value="relax">relax</option>
+                    <option value="scf">scf</option>
+                    <option value="dos">dos</option>
+                    <option value="converge">converge</option>
+                    <option value="elastic">elastic</option>
+                    <option value="band">band</option>
+                    <option value="charge">charge</option>
+                    <option value="phonon">phonon</option>
+                  </select>
+                </label>
+                <label class="beginner-advanced">
+                  <span>Target</span>
+                  <select id="submit-target"></select>
+                </label>
+                <label>
+                  <span>MPI NP</span>
+                  <input id="submit-mpi" type="number" min="1" max="128" value="1">
+                </label>
+                <button id="preview-job" class="ghost" data-complexity="advanced">Preview Job</button>
+                <button id="submit-job">Submit Job</button>
+              </div>
+              <p class="small-label" id="submit-status">No job submitted from UI yet.</p>
+              <p class="small-label" data-complexity="beginner-only">
+                Beginner mode automatically runs a pre-submit check before the job is submitted.
+              </p>
+              <div id="submit-warnings" class="submit-warning-box hidden"></div>
+            </article>
+
+            <article class="panel wide setup-primary" data-flow-panels="setup">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2>Material Parameters</h2>
+                  <p>Define the material-level knobs once, then let the platform regenerate derived inputs.</p>
+                </div>
+                <span id="material-form-chip" class="chip">idle</span>
+              </div>
+              <p class="small-label full setup-guide" data-complexity="beginner-only">
+                Setup is where you check the material type, k-mesh, spin option, and MAGMOM. If you are unsure, review the visible fields and click `Save Parameters`.
+              </p>
+              <div id="material-presets" class="preset-strip"></div>
+              <p id="material-preset-status" class="small-label">Use a preset first. If you are unsure, leave the advanced fields alone and save the defaults.</p>
+              <div class="form-grid">
+                <label>
+                  <span>Formula Label</span>
+                  <input id="material-formula" type="text" placeholder="MgO">
+                </label>
+                <label>
+                  <span>Material Class</span>
+                  <select id="material-class">
+                    <option value="bulk">bulk</option>
+                    <option value="2d">2d</option>
+                    <option value="slab">slab</option>
+                    <option value="molecule">molecule</option>
+                  </select>
+                </label>
+                <p id="material-class-help" class="small-label full">Bulk = normal 3D crystal. 2D/slab = vacuum along one direction. Molecule = isolated cluster in a box.</p>
+                <label class="beginner-advanced">
+                  <span>Electronic Type</span>
+                  <select id="material-electronic-type">
+                    <option value="auto">auto</option>
+                    <option value="metal">metal</option>
+                    <option value="semiconductor">semiconductor</option>
+                    <option value="insulator">insulator</option>
+                  </select>
+                </label>
+                <label class="beginner-advanced">
+                  <span>Geometry Functional</span>
+                  <select id="material-xc-geometry"></select>
+                </label>
+                <label class="beginner-advanced">
+                  <span>Electronic Functional</span>
+                  <select id="material-xc-electronic"></select>
+                </label>
+                <p class="small-label full beginner-advanced">
+                  Use `PBE/PBEsol` for structure steps. `HSE06` is supported for heavier electronic-structure refinement; hybrid `band` will reuse the SCF mesh as runtime `KPOINTS` and the saved line path as runtime `KPOINTS_OPT`.
+                </p>
+                <label class="beginner-advanced">
+                  <span>POTCAR Family</span>
+                  <select id="material-potcar-family"></select>
+                </label>
+                <label class="beginner-advanced">
+                  <span>POTCAR Profile</span>
+                  <select id="material-potcar-profile"></select>
+                </label>
+                <label>
+                  <span>Default ENCUT</span>
+                  <input id="material-encut" type="number" min="100" step="1" placeholder="520">
+                </label>
+                <label>
+                  <span>SCF Mesh</span>
+                  <input id="material-kmesh" type="text" placeholder="12 12 12">
+                </label>
+                <label>
+                  <span>DOS Mesh</span>
+                  <input id="material-dos-kmesh" type="text" placeholder="14 14 14">
+                </label>
+                <p class="small-label full">
+                  Generated DOS mesh defaults to a slightly denser version of the SCF mesh (roughly `+2` per axis, capped at `31`) unless you set it explicitly.
+                </p>
+                <label class="beginner-advanced">
+                  <span>Phonon Mesh</span>
+                  <input id="material-phonon-kmesh" type="text" placeholder="4 4 4">
+                </label>
+                <label class="beginner-advanced">
+                  <span>Phonon DOS Q-Mesh</span>
+                  <input id="material-phonon-dos-kmesh" type="text" placeholder="8 8 8">
+                </label>
+                <p class="small-label full beginner-advanced">
+                  This post-processing q-mesh is used only for phonon DOS / PDOS and is independent from the VASP supercell displacement mesh.
+                </p>
+                <label class="beginner-advanced">
+                  <span>Phonon Supercell</span>
+                  <input id="material-phonon-supercell" type="text" placeholder="2 2 2">
+                </label>
+                <label class="beginner-advanced">
+                  <span>Band Points / Segment</span>
+                  <input id="material-band-points" type="number" min="20" max="500" value="101">
+                </label>
+                <label class="beginner-advanced">
+                  <span>Band Path Source</span>
+                  <select id="material-band-path-mode">
+                    <option value="auto">auto</option>
+                    <option value="custom">custom</option>
+                  </select>
+                </label>
+                <label class="beginner-advanced">
+                  <span>Walltime (seconds)</span>
+                  <input id="material-wallclock" type="number" min="3600" max="604800" value="43200">
+                </label>
+                <label id="material-band-path-wrap" class="full beginner-advanced hidden">
+                  <span>Custom Band Path</span>
+                  <textarea id="material-band-path-text" rows="10" placeholder="K-Path aligned to paper Fig. 2 labels&#10;101&#10;Line-Mode&#10;Reciprocal&#10;0.00000000 0.00000000 0.00000000 GAMMA&#10;0.00000000 0.50000000 0.00000000 X"></textarea>
+                </label>
+                <label class="checkbox-row full">
+                  <input id="material-spin-polarized" type="checkbox">
+                  <span>Spin-polarized workflow</span>
+                </label>
+                <label class="full">
+                  <span>MAGMOM</span>
+                  <input id="material-magmom" type="text" placeholder="0 1 0 0 0">
+                </label>
+                <label class="full beginner-advanced">
+                  <span>POTCAR Mapping</span>
+                  <div id="material-potcar-selectors" class="mapping-grid"></div>
+                </label>
+                <label class="full beginner-advanced">
+                  <span>Expert INCAR Overrides JSON</span>
+                  <textarea id="material-overrides" rows="8" placeholder='{"scf": {"ENCUT": 600}}'></textarea>
+                </label>
+                <div class="editor-buttons full">
+                  <button id="save-material-settings">Save Parameters</button>
+                  <button id="refresh-material-settings" class="ghost">Reload Parameters</button>
+                </div>
+              </div>
+              <p id="material-form-status" class="small-label">Select a system to load its material parameters.</p>
+            </article>
+
+            <article id="input-review-panel" class="panel wide" data-flow-panels="setup">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2>Generated Input Check</h2>
+                  <p>After saving parameters, review the full generated input text here before you submit the next step.</p>
+                </div>
+                <span class="chip">read-only</span>
+              </div>
+              <div class="viewer-shell">
+                <div class="viewer-toolbar">
+                  <div class="viewer-lights"><span></span><span></span><span></span></div>
+                  <span class="chip">full input bundle</span>
+                </div>
+                <pre id="input-review-text" class="viewer"></pre>
+              </div>
+              <p id="input-review-status" class="small-label">Save parameters to regenerate inputs, then inspect the full text bundle here.</p>
+            </article>
+
+            <article class="panel wide" data-flow-panels="setup" data-complexity="advanced">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2>Input Editor</h2>
+                  <p>Beginner mode keeps generated files read-only. Expert Override also unlocks generated inputs such as KPATH.in, KPOINTS.*, and band.conf for manual editing. Saving material parameters can still regenerate template-driven inputs.</p>
+                </div>
+              </div>
+              <div class="editor-actions">
+                <select id="file-select"></select>
+                <div class="editor-buttons">
+                  <button id="generate-file" class="ghost">Auto Generate</button>
+                  <button id="reload-file" class="ghost">Reload</button>
+                  <button id="save-file">Save Changes</button>
+                </div>
+              </div>
+              <div class="editor-shell">
+                <div class="viewer-toolbar">
+                  <div class="viewer-lights"><span></span><span></span><span></span></div>
+                  <span id="file-mode-chip" class="chip">editable source</span>
+                </div>
+                <textarea id="file-editor" class="viewer editor-text" spellcheck="false"></textarea>
+              </div>
+              <p id="file-status" class="small-label">Select a system, then inspect generated inputs or edit files. In Expert Override, generated K-path and K-points files can also be edited directly. Save Parameters can overwrite regenerated templates.</p>
+            </article>
+
+            <article class="panel" data-flow-panels="setup" data-complexity="advanced">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2>INCAR Form</h2>
+                  <p>Edit the most common knobs without hand-scanning the file.</p>
+                </div>
+                <span id="incar-form-chip" class="chip">inactive</span>
+              </div>
+              <div class="form-grid incar-form-grid">
+                <label>
+                  <span>ENCUT</span>
+                  <input id="incar-encut" type="number" step="1" placeholder="600">
+                </label>
+                <label>
+                  <span>ISPIN</span>
+                  <select id="incar-ispin">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                  </select>
+                </label>
+                <label>
+                  <span>ISMEAR</span>
+                  <input id="incar-ismear" type="number" step="1" placeholder="0">
+                </label>
+                <label>
+                  <span>SIGMA</span>
+                  <input id="incar-sigma" type="number" step="0.01" placeholder="0.05">
+                </label>
+                <label>
+                  <span>EDIFF</span>
+                  <input id="incar-ediff" type="text" placeholder="1E-06">
+                </label>
+                <label>
+                  <span>EDIFFG</span>
+                  <input id="incar-ediffg" type="text" placeholder="-0.02">
+                </label>
+                <label>
+                  <span>ALGO</span>
+                  <input id="incar-algo" type="text" placeholder="Normal">
+                </label>
+                <label>
+                  <span>LREAL</span>
+                  <input id="incar-lreal" type="text" placeholder=".FALSE.">
+                </label>
+                <label class="full">
+                  <span>MAGMOM</span>
+                  <input id="incar-magmom" type="text" placeholder="0 5 0 0 0">
+                </label>
+                <label class="checkbox-row full">
+                  <input id="incar-ldau" type="checkbox">
+                  <span>Enable +U</span>
+                </label>
+                <label>
+                  <span>LDAUTYPE</span>
+                  <input id="incar-ldautype" type="number" step="1" placeholder="2">
+                </label>
+                <label>
+                  <span>LDAUL</span>
+                  <input id="incar-ldaul" type="text" placeholder="-1 2 -1">
+                </label>
+                <label>
+                  <span>LDAUU</span>
+                  <input id="incar-ldauu" type="text" placeholder="0 4 0">
+                </label>
+                <label>
+                  <span>LDAUJ</span>
+                  <input id="incar-ldauj" type="text" placeholder="0 0 0">
+                </label>
+                <div class="incar-form-actions full">
+                  <button id="incar-load" class="ghost">Read From Editor</button>
+                  <button id="incar-apply" class="ghost">Apply To Editor</button>
+                </div>
+              </div>
+              <p id="incar-form-status" class="small-label">Select an `INCAR.*` file to edit common parameters with the form.</p>
+            </article>
+
+            <article class="panel" data-flow-panels="setup,phonon" data-complexity="advanced">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2>Phonon NAC</h2>
+                  <p>Control `band.conf` NAC settings and build `BORN` from the charge-step dielectric run.</p>
+                </div>
+                <span id="phonon-nac-chip" class="chip">inactive</span>
+              </div>
+              <div class="form-grid incar-form-grid">
+                <label class="checkbox-row full">
+                  <input id="phonon-nac-enabled" type="checkbox">
+                  <span>Enable NAC in `band.conf`</span>
+                </label>
+                <label class="full">
+                  <span>Q_DIRECTION</span>
+                  <input id="phonon-nac-q-direction" type="text" placeholder="1 0 0">
+                </label>
+                <p id="phonon-nac-summary" class="small-label full">NAC is disabled until `band.conf` requests it and a `BORN` file is available.</p>
+                <div class="incar-form-actions full">
+                  <button id="phonon-nac-save" class="ghost">Save NAC To band.conf</button>
+                  <button id="phonon-nac-prepare-charge" class="ghost">Prepare Charge LEPSILON</button>
+                  <button id="phonon-nac-build-born" class="ghost">Build BORN From Charge</button>
+                </div>
+              </div>
+              <p id="phonon-nac-status" class="small-label">Use this panel to keep `band.conf`, `INCAR.charge`, and `BORN` aligned for LO-TO splitting.</p>
+            </article>
+
+            <article class="panel" data-flow-panels="setup,relax,scf,dos,converge,band,elastic,charge,phonon" data-complexity="advanced">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2>Project Tree</h2>
+                  <p id="project-tree-note">Quick view of generated inputs and run outputs.</p>
+                </div>
+              </div>
+              <div id="project-tree" class="tree"></div>
+            </article>
+
+            <article class="panel" data-flow-panels="relax,scf,dos,converge,band,elastic,charge,phonon">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2 id="jobs-title">Jobs</h2>
+                  <p id="jobs-note">Recent local and remote submissions.</p>
+                </div>
+                <div class="editor-buttons">
+                  <button id="toggle-jobs-view" class="ghost">Show All</button>
+                  <button id="cleanup-jobs" class="ghost">Clean Old</button>
+                  <button id="toggle-jobs-panel" class="ghost">Collapse</button>
+                  <button id="refresh-jobs" class="ghost">Refresh</button>
+                </div>
+              </div>
+              <p id="jobs-summary" class="small-label">No jobs loaded yet.</p>
+              <div id="jobs-region">
+                <div id="jobs-list" class="stack list jobs-scroll"></div>
+              </div>
+            </article>
+
+            <article class="panel wide" data-flow-panels="relax,scf,dos,converge,band,elastic,charge,phonon">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2 id="job-log-title">Job Log</h2>
+                  <p id="job-log-note">Live process output and AiiDA reports for the selected job.</p>
+                </div>
+                <span id="job-log-label" class="chip">none</span>
+              </div>
+              <div class="editor-buttons job-control-row">
+                <button id="job-pause" type="button" class="ghost">Pause</button>
+                <button id="job-resume" type="button" class="ghost">Resume</button>
+                <button id="job-stop" type="button" class="ghost">Stop</button>
+                <button id="job-delete" type="button" class="ghost">Delete Record</button>
+              </div>
+              <p id="job-control-status" class="small-label">Select a job to control it.</p>
+              <div class="viewer-shell">
+                <div class="viewer-toolbar">
+                  <div class="viewer-lights"><span></span><span></span><span></span></div>
+                  <span class="chip">runtime console</span>
+                </div>
+                <pre id="job-log" class="viewer"></pre>
+              </div>
+            </article>
+          </section>
+        </section>
+
+        <section id="view-project-lab" class="page-view hidden">
+          <section class="grid">
+            <article class="panel">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2>Create / Import Project</h2>
+                  <p>Clone an existing system and optionally replace the structure.</p>
+                </div>
+                <button id="back-to-workbench" class="ghost">Return to Workbench</button>
+              </div>
+              <div class="wizard-strip" id="project-wizard">
+                <div id="wizard-step-1" class="wizard-step active">1. Name and type</div>
+                <div id="wizard-step-2" class="wizard-step">2. Import structure</div>
+                <div id="wizard-step-3" class="wizard-step">3. Create project</div>
+              </div>
+              <div class="form-grid">
+                <label>
+                  <span>New Project Name</span>
+                  <input id="new-project-name" type="text" placeholder="mgo-relax-01">
+                </label>
+                <label>
+                  <span>Material Type</span>
+                  <select id="new-project-material-class">
+                    <option value="bulk">Bulk crystal</option>
+                    <option value="2d">2D material</option>
+                    <option value="slab">Surface / slab</option>
+                    <option value="molecule">Molecule / cluster</option>
+                  </select>
+                </label>
+                <div class="full advanced-project-template">
+                  <details id="project-template-advanced">
+                    <summary>Expert: template source project</summary>
+                    <p class="small-label">
+                      This only provides a project skeleton. It is not your actual material choice.
+                    </p>
+                    <label>
+                      <span>Template Source Project</span>
+                      <select id="new-project-template"></select>
+                    </label>
+                  </details>
+                </div>
+                <label>
+                  <span>Structure Format</span>
+                  <select id="new-project-structure-format">
+                    <option value="poscar">POSCAR</option>
+                    <option value="cif">CIF</option>
+                  </select>
+                </label>
+                <input id="new-project-file" type="file" accept=".cif,.vasp,.poscar,.txt,.cell" hidden>
+                <div id="new-project-dropzone" class="dropzone full">
+                  <strong>Drop a CIF or POSCAR file here</strong>
+                  <p>Or choose a local file, detect the format, and load it into the project wizard.</p>
+                  <div class="editor-buttons">
+                    <button id="new-project-browse" type="button" class="ghost">Choose File</button>
+                    <button id="new-project-clear" type="button" class="ghost">Clear Imported Structure</button>
+                  </div>
+                </div>
+                <p id="new-project-structure-hint" class="small-label full">No imported structure loaded yet. Import or paste a POSCAR/CIF for a new project, or choose an existing system to fork its settings.</p>
+                <label class="full">
+                  <span>Imported Structure</span>
+                  <textarea id="new-project-poscar" rows="14" placeholder="Paste POSCAR or CIF text here to replace the template structure."></textarea>
+                </label>
+                <button id="create-project">Create Project</button>
+              </div>
+              <p class="small-label" id="create-project-status">Create a new project from your structure. The material type sets initial defaults and can still be changed later in Setup.</p>
+              <div class="project-danger-row">
+                <button id="delete-project" type="button" class="ghost danger" disabled>Delete Selected Project</button>
+                <p class="small-label" id="delete-project-status">Select a project to enable deletion. Running projects cannot be deleted.</p>
+              </div>
+            </article>
+
+            <article class="panel" data-complexity="advanced">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2>Remote Profiles</h2>
+                  <p>Register SSH-backed targets for mirrored workspaces.</p>
+                </div>
+              </div>
+              <div class="form-grid">
+                <label>
+                  <span>Profile Name</span>
+                  <input id="profile-name" type="text" placeholder="hpc-slurm">
+                </label>
+                <label>
+                  <span>Host</span>
+                  <input id="profile-host" type="text" placeholder="hpc.example.org">
+                </label>
+                <label>
+                  <span>User</span>
+                  <input id="profile-user" type="text" placeholder="username">
+                </label>
+                <label>
+                  <span>Remote Workspace Root</span>
+                  <input id="profile-root" type="text" placeholder="/data/vasp-projects">
+                </label>
+                <label>
+                  <span>Scheduler</span>
+                  <select id="profile-scheduler">
+                    <option value="ssh">SSH / direct</option>
+                    <option value="slurm">Slurm</option>
+                    <option value="pbs">PBS</option>
+                  </select>
+                </label>
+                <label>
+                  <span>MPI NP</span>
+                  <input id="profile-mpi" type="number" min="1" max="128" value="1">
+                </label>
+                <label>
+                  <span>Queue / Partition</span>
+                  <input id="profile-queue" type="text" placeholder="compute">
+                </label>
+                <label>
+                  <span>Account</span>
+                  <input id="profile-account" type="text" placeholder="materials">
+                </label>
+                <label>
+                  <span>Walltime</span>
+                  <input id="profile-walltime" type="text" value="24:00:00" placeholder="24:00:00">
+                </label>
+                <label class="full">
+                  <span>Pre Command</span>
+                  <input id="profile-pre" type="text" placeholder="module load intelmpi && module load vasp">
+                </label>
+                <label class="full">
+                  <span>Extra Scheduler Options</span>
+                  <input id="profile-submit-options" type="text" placeholder="#SBATCH --mem=16G or #PBS -l mem=16gb">
+                </label>
+                <button id="save-profile">Save Remote Profile</button>
+              </div>
+              <p class="small-label" id="profile-status">Remote submission assumes SSH access and a shared or mirrored workspace path.</p>
+            </article>
+
+            <article class="panel wide" data-complexity="advanced">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2>Available Submission Targets</h2>
+                  <p>Local and remote destinations currently available to the submitter.</p>
+                </div>
+              </div>
+              <div id="profile-list" class="stack"></div>
+            </article>
+
+            <article id="aiida-workchains-panel" class="panel wide" data-complexity="advanced">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2>AiiDA Workchains</h2>
+                  <p>Detected workflow entry points from the active AiiDA profile.</p>
+                </div>
+              </div>
+              <div id="aiida-workchains" class="stack"></div>
+            </article>
+
+            <article id="aiida-codes-panel" class="panel wide" data-complexity="advanced">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2>AiiDA Codes</h2>
+                  <p>Registered executables available to submitted workflows.</p>
+                </div>
+              </div>
+              <div id="aiida-codes" class="stack"></div>
+            </article>
+
+            <article id="aiida-potcars-panel" class="panel wide" data-complexity="advanced">
+              <div class="panel-head">
+                <div class="panel-title-group">
+                  <h2>AiiDA POTCAR Families</h2>
+                  <p>Potential families ready for VASP workchain submission.</p>
+                </div>
+              </div>
+              <div id="aiida-potcars" class="stack"></div>
+            </article>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="/static/app.js?v={{ asset_version }}"></script>
+  </body>
+  </html>
