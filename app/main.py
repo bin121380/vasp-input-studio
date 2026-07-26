@@ -8,9 +8,10 @@ import re
 import signal
 import shutil
 import subprocess
+import threading
 import fnmatch
 from datetime import datetime
-from functools import lru_cache
+from functools import lru_cache, wraps
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -7693,7 +7694,23 @@ async def band_export(system_name: str, kind: str = Query("data")) -> FileRespon
     raise HTTPException(status_code=400, detail="Unknown band export kind")
 
 
+# Mutating routes below are plain `def` so vaspkit/subprocess work runs in the
+# thread pool without freezing the event loop. This lock keeps them mutually
+# exclusive, preserving the serialized-write behavior they had on the loop.
+_MUTATING_ROUTE_LOCK = threading.Lock()
+
+
+def _serialized_route(fn):
+    @wraps(fn)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        with _MUTATING_ROUTE_LOCK:
+            return fn(*args, **kwargs)
+
+    return wrapper
+
+
 @app.post("/api/systems/{system_name}/dos/pdos")
+@_serialized_route
 def generate_dos_pdos(system_name: str) -> dict[str, Any]:
     system_dir = resolve_system_dir(system_name)
     result = generate_element_pdos(system_dir)
@@ -7704,6 +7721,7 @@ def generate_dos_pdos(system_name: str) -> dict[str, Any]:
 
 
 @app.post("/api/systems/{system_name}/relax/primitive")
+@_serialized_route
 def generate_relax_primitive(system_name: str) -> dict[str, Any]:
     system_dir = resolve_system_dir(system_name)
     result = generate_primitive_cell(system_dir)
@@ -7720,6 +7738,7 @@ async def aiida_system_recipe(system_name: str) -> dict[str, Any]:
 
 
 @app.post("/api/phonon/nac/save")
+@_serialized_route
 def save_phonon_nac_settings(payload: PhononNacSettingsRequest) -> dict[str, Any]:
     system_dir = resolve_system_dir(payload.system)
     try:
@@ -7733,6 +7752,7 @@ def save_phonon_nac_settings(payload: PhononNacSettingsRequest) -> dict[str, Any
 
 
 @app.post("/api/phonon/nac/prepare-charge")
+@_serialized_route
 def prepare_charge_for_phonon_nac(payload: SystemOnlyRequest) -> dict[str, Any]:
     system_dir = resolve_system_dir(payload.system)
     try:
@@ -7746,6 +7766,7 @@ def prepare_charge_for_phonon_nac(payload: SystemOnlyRequest) -> dict[str, Any]:
 
 
 @app.post("/api/phonon/nac/build-born")
+@_serialized_route
 def build_phonon_born(payload: SystemOnlyRequest) -> dict[str, Any]:
     system_dir = resolve_system_dir(payload.system)
     try:
@@ -7781,6 +7802,7 @@ async def file_preview(system: str, path: str = Query(...), expert: bool = Query
 
 
 @app.post("/api/file/save")
+@_serialized_route
 def save_file(payload: SaveFileRequest) -> dict[str, Any]:
     system_dir = resolve_system_dir(payload.system)
 
@@ -7840,6 +7862,7 @@ def save_file(payload: SaveFileRequest) -> dict[str, Any]:
 
 
 @app.post("/api/file/generate")
+@_serialized_route
 def generate_file(payload: GenerateFileRequest) -> dict[str, Any]:
     system_dir = resolve_system_dir(payload.system)
     try:
@@ -7866,6 +7889,7 @@ async def material_settings(system: str) -> dict[str, Any]:
 
 
 @app.post("/api/material-settings/save")
+@_serialized_route
 def save_material_settings_endpoint(payload: MaterialSettingsRequest) -> dict[str, Any]:
     system_dir = resolve_system_dir(payload.system)
     backend = aiida_inventory(settings.aiida_profile_name)
