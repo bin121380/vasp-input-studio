@@ -14,6 +14,8 @@ from .config import settings
 from .input_generation import generate_input_content, normalize_custom_kpath_text, parse_poscar_model
 from .magnetism import default_magmom_values
 from .persistence import atomic_write_bytes, atomic_write_text, backup_file, read_json, write_json
+from .precision import PRECISION_TIERS, all_tier_settings
+from .structure_analysis import analyze_structure
 from .structure_resolution import (
     RELAX_CONTCAR_RELATIVE,
     RELAX_PRIMITIVE_RELATIVE,
@@ -591,6 +593,7 @@ def sync_metadata_from_kpoints_scf(system_dir: Path, content: str | None = None)
         return []
 
     metadata["kmesh"] = mesh
+    metadata.pop("precision_tier", None)
     backup_file(metadata_path)
     write_json(metadata_path, metadata)
     return ["kmesh"]
@@ -663,6 +666,7 @@ def sync_metadata_from_band_conf(system_dir: Path, content: str | None = None) -
         updated_keys.append("band_points")
 
     if updated_keys:
+        metadata.pop("precision_tier", None)
         backup_file(metadata_path)
         write_json(metadata_path, metadata)
     return updated_keys
@@ -710,6 +714,23 @@ def potcar_titles(path: Path) -> list[str]:
         if match:
             titles.append(match.group(1))
     return titles
+
+
+def max_potcar_enmax(path: Path) -> float | None:
+    """Largest ENMAX advertised by the datasets concatenated into a POTCAR."""
+    if not path.exists():
+        return None
+    values: list[float] = []
+    pattern = re.compile(r"ENMAX\s*=\s*([0-9.]+)")
+    for line in path.read_text(errors="ignore").splitlines():
+        match = pattern.search(line)
+        if not match:
+            continue
+        try:
+            values.append(float(match.group(1)))
+        except ValueError:
+            continue
+    return max(values) if values else None
 
 
 @lru_cache(maxsize=None)
@@ -956,6 +977,24 @@ def material_form_payload(system_dir: Path, backend: dict[str, Any] | None = Non
     if xc_electronic not in ELECTRONIC_FUNCTIONAL_VALUES:
         xc_electronic = "PBE"
     encut = metadata.get("encut", 520)
+
+    material_class = str(metadata.get("material_class") or "bulk")
+    electronic_type = str(metadata.get("electronic_type") or "auto")
+    # Advisory only. An unusual cell must never take the whole Setup panel down
+    # with it, so a failure here degrades to "no advice" rather than a 500.
+    try:
+        analysis = analyze_structure(poscar)
+        tiers = all_tier_settings(
+            poscar["lattice"],
+            material_class=material_class,
+            electronic_type=electronic_type,
+            vacuum_axis=analysis["dimensionality"]["vacuum_axis"],
+            max_enmax=max_potcar_enmax(system_dir / "POTCAR"),
+            atom_count=total_atoms,
+        )
+    except Exception:
+        analysis = None
+        tiers = []
     band_path_text = str(metadata.get("band_path_text") or "")
     band_path_mode = str(metadata.get("band_path_mode") or ("custom" if band_path_text.strip() else "auto")).lower()
     if band_path_mode not in {"auto", "custom"}:
@@ -966,8 +1005,8 @@ def material_form_payload(system_dir: Path, backend: dict[str, Any] | None = Non
         "species": species,
         "counts": counts,
         "total_atoms": total_atoms,
-        "material_class": str(metadata.get("material_class") or "bulk"),
-        "electronic_type": str(metadata.get("electronic_type") or "auto"),
+        "material_class": material_class,
+        "electronic_type": electronic_type,
         "xc_geometry": xc_geometry,
         "xc_electronic": xc_electronic,
         "xc_geometry_options": list(GEOMETRY_FUNCTIONAL_OPTIONS),
@@ -1025,6 +1064,30 @@ def material_form_payload(system_dir: Path, backend: dict[str, Any] | None = Non
             }
             for key, value in MATERIAL_PRESETS.items()
         ],
+        "structure_analysis": (
+            {
+                **analysis,
+                "magnetism": {
+                    **analysis["magnetism"],
+                    "suggested_magmom_text": format_float_list(analysis["magnetism"]["suggested_magmom"]),
+                },
+            }
+            if analysis
+            else None
+        ),
+        "precision_tiers": [
+            {
+                **tier,
+                "encut_text": format_number(tier["encut"]),
+                "kmesh_text": format_triplet(tier["kmesh"]),
+                "dos_kmesh_text": format_triplet(tier["dos_kmesh"]),
+                "phonon_kmesh_text": format_triplet(tier["phonon_kmesh"]),
+                "phonon_dos_kmesh_text": format_triplet(tier["phonon_dos_kmesh"]),
+                "phonon_supercell_text": format_triplet(tier["phonon_supercell"]),
+            }
+            for tier in tiers
+        ],
+        "applied_precision_tier": str(metadata.get("precision_tier") or ""),
     }
 
 
@@ -1146,6 +1209,11 @@ def save_material_settings(system_dir: Path, payload: dict[str, Any], backend: d
     band_points = max(20, int(payload.get("band_points") or current_metadata.get("band_points", 101)))
     band_kpoints_distance = float(payload.get("band_kpoints_distance") or current_metadata.get("band_kpoints_distance", 0.05))
     wallclock_seconds = max(3600, int(payload.get("wallclock_seconds") or current_metadata.get("wallclock_seconds", 12 * 3600)))
+    # Recorded only so the UI can show which tier produced the current numbers.
+    # Any later hand edit of a mesh or ENCUT clears it via the payload.
+    precision_tier = str(payload.get("precision_tier") or "").strip()
+    if precision_tier not in PRECISION_TIERS:
+        precision_tier = ""
     band_path_mode = str(payload.get("band_path_mode") or current_metadata.get("band_path_mode") or "auto").strip().lower()
     if band_path_mode not in {"auto", "custom"}:
         band_path_mode = "auto"
@@ -1196,6 +1264,10 @@ def save_material_settings(system_dir: Path, payload: dict[str, Any], backend: d
             "wallclock_seconds": wallclock_seconds,
         }
     )
+    if precision_tier:
+        metadata["precision_tier"] = precision_tier
+    else:
+        metadata.pop("precision_tier", None)
     if band_path_mode == "custom":
         metadata["band_path_text"] = band_path_text
     else:

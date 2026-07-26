@@ -391,8 +391,18 @@
               <p class="small-label full setup-guide" data-complexity="beginner-only">
                 Setup is where you check the material type, k-mesh, spin option, and MAGMOM. If you are unsure, review the visible fields and click `Save Parameters`.
               </p>
-              <div id="material-presets" class="preset-strip"></div>
-              <p id="material-preset-status" class="small-label">Use a preset first. If you are unsure, leave the advanced fields alone and save the defaults.</p>
+              <div id="structure-advice" class="advice-box hidden"></div>
+              <div class="tier-block">
+                <p class="small-label tier-lead">Pick a precision level. It fills in the k-point meshes below from the shape of your cell, and the plane-wave cutoff from your POTCAR.</p>
+                <div id="precision-tiers" class="tier-grid"></div>
+                <p class="small-label tier-caveat">Every level here is an unconverged starting point, including High. Run the Converge stage on your own system before you report any number.</p>
+                <p id="precision-tier-status" class="small-label"></p>
+              </div>
+              <details class="preset-details">
+                <summary>Material presets (fixed parameter sets for common material types)</summary>
+                <div id="material-presets" class="preset-strip"></div>
+                <p id="material-preset-status" class="small-label">Presets apply one fixed parameter set regardless of your cell size. Precision levels above adapt to your structure instead.</p>
+              </details>
               <div class="form-grid">
                 <label>
                   <span>Formula Label</span>
@@ -449,7 +459,7 @@
                   <input id="material-dos-kmesh" type="text" placeholder="14 14 14">
                 </label>
                 <p class="small-label full">
-                  Generated DOS mesh defaults to a slightly denser version of the SCF mesh (roughly `+2` per axis, capped at `31`) unless you set it explicitly.
+                  A precision level fills these in from the cell. Left empty, the DOS mesh falls back to a slightly denser version of the SCF mesh (roughly `+2` per axis, capped at `31`).
                 </p>
                 <label class="beginner-advanced">
                   <span>Phonon Mesh</span>
@@ -493,6 +503,7 @@
                   <span>MAGMOM</span>
                   <input id="material-magmom" type="text" placeholder="0 1 0 0 0">
                 </label>
+                <p class="small-label full">These are starting moments used to initialize the SCF, not predicted moments. VASP will relax them; check the final moment in the output.</p>
                 <label class="full beginner-advanced">
                   <span>POTCAR Mapping</span>
                   <div id="material-potcar-selectors" class="mapping-grid"></div>

@@ -19,6 +19,7 @@ const state = {
   systemsQuery: "",
   hideUtilitySystems: true,
   beginnerMode: true,
+  pendingPrecisionTier: "",
   bandSpinFilters: {
     up: true,
     down: true,
@@ -2883,6 +2884,9 @@ function renderMaterialSettings(detail) {
     MATERIAL_CLASS_HELP[material.material_class || "bulk"] || MATERIAL_CLASS_HELP.bulk;
   syncMaterialBandPathMode();
   renderPotcarSelectors(material.potcar_options || []);
+  state.pendingPrecisionTier = material.applied_precision_tier || "";
+  renderPrecisionTiers(material.precision_tiers || [], state.pendingPrecisionTier);
+  renderStructureAdvice(material.structure_analysis, material);
   renderMaterialPresets(material.presets || []);
   document.getElementById("material-form-chip").textContent =
     `${material.species?.join("-") || "idle"} | ${material.total_atoms || 0} atoms`;
@@ -3002,6 +3006,216 @@ async function buildBornFromCharge() {
   }
 }
 
+const PRECISION_TIER_DEFAULT_STATUS =
+  "Nothing applied yet. Clicking a level overwrites the cutoff, every mesh, the phonon supercell, band points and walltime below.";
+
+function setPrecisionTierStatus(message) {
+  const node = document.getElementById("precision-tier-status");
+  if (node) {
+    node.textContent = message;
+  }
+}
+
+// Any other code path that writes the tier-controlled fields must call this, or
+// the highlighted card would keep claiming credit for numbers it did not produce.
+function clearPendingPrecisionTier(message) {
+  state.pendingPrecisionTier = "";
+  document.querySelectorAll("[data-precision-tier]").forEach((node) => {
+    node.classList.remove("selected");
+    node.setAttribute("aria-pressed", "false");
+  });
+  setPrecisionTierStatus(message || PRECISION_TIER_DEFAULT_STATUS);
+}
+
+function renderPrecisionTiers(tiers, appliedTierId) {
+  const root = document.getElementById("precision-tiers");
+  if (!root) {
+    return;
+  }
+  // Reset on every render so a message from a previous project cannot survive
+  // a system switch or a background poll refresh.
+  setPrecisionTierStatus(
+    appliedTierId
+      ? `Saved with the ${appliedTierId} level. Editing any value below clears that label.`
+      : PRECISION_TIER_DEFAULT_STATUS
+  );
+  if (!tiers.length) {
+    root.innerHTML = "";
+    return;
+  }
+  root.innerHTML = tiers.map((tier) => {
+    const selected = tier.id === appliedTierId;
+    const supercell = tier.supercell_atom_count
+      ? `${tier.phonon_supercell_text.replace(/ /g, "x")} (${tier.supercell_atom_count} atoms)`
+      : tier.phonon_supercell_text.replace(/ /g, "x");
+    return `
+    <button type="button" class="tier-card${selected ? " selected" : ""}" data-precision-tier="${escapeHtml(tier.id)}"
+            aria-pressed="${selected ? "true" : "false"}" aria-label="${escapeHtml(tier.label)} precision level">
+      <span class="tier-card-head">
+        <span class="tier-name">${escapeHtml(tier.label)}</span>
+        <span class="tier-tagline">${escapeHtml(tier.tagline)}</span>
+      </span>
+      <span class="tier-desc">${escapeHtml(tier.description)}</span>
+      <span class="tier-specs">
+        <span><b>SCF mesh</b><span>${escapeHtml(tier.kmesh_text)} <i>(${tier.kpoint_count} k-pts)</i></span></span>
+        <span><b>DOS mesh</b><span>${escapeHtml(tier.dos_kmesh_text)}</span></span>
+        <span><b>Cutoff</b><span>${escapeHtml(tier.encut_text)} eV</span></span>
+        <span><b>Phonon cell</b><span>${escapeHtml(supercell)}</span></span>
+      </span>
+    </button>`;
+  }).join("");
+  root.querySelectorAll("[data-precision-tier]").forEach((node) => {
+    // Capture the tier that was actually rendered: re-reading global state here
+    // would go stale whenever the form is refreshed from a newer payload.
+    const tier = tiers.find((item) => item.id === node.dataset.precisionTier);
+    node.addEventListener("click", () => applyPrecisionTier(tier));
+  });
+}
+
+function applyPrecisionTier(tier) {
+  if (!tier) {
+    return;
+  }
+  const tierId = tier.id;
+  const setValue = (id, value) => {
+    const node = document.getElementById(id);
+    if (node) {
+      node.value = value;
+    }
+  };
+  setValue("material-encut", tier.encut_text);
+  setValue("material-kmesh", tier.kmesh_text);
+  setValue("material-dos-kmesh", tier.dos_kmesh_text);
+  setValue("material-phonon-kmesh", tier.phonon_kmesh_text);
+  setValue("material-phonon-dos-kmesh", tier.phonon_dos_kmesh_text);
+  setValue("material-phonon-supercell", tier.phonon_supercell_text);
+  setValue("material-band-points", tier.band_points);
+  setValue("material-wallclock", tier.wallclock_seconds);
+  state.pendingPrecisionTier = tierId;
+
+  document.querySelectorAll("[data-precision-tier]").forEach((node) => {
+    const selected = node.dataset.precisionTier === tierId;
+    node.classList.toggle("selected", selected);
+    node.setAttribute("aria-pressed", selected ? "true" : "false");
+  });
+  // Spell out every field the click touched, including the ones a beginner
+  // cannot see, so nothing changes behind the user's back.
+  const changed = [
+    `cutoff ${tier.encut_text} eV`,
+    `SCF mesh ${tier.kmesh_text}`,
+    `DOS mesh ${tier.dos_kmesh_text}`,
+    `phonon mesh ${tier.phonon_kmesh_text}`,
+    `phonon DOS q-mesh ${tier.phonon_dos_kmesh_text}`,
+    `phonon supercell ${tier.phonon_supercell_text.replace(/ /g, "x")}`,
+    `band points ${tier.band_points}`,
+    `walltime ${Math.round(tier.wallclock_seconds / 3600)} h`,
+  ].join(", ");
+  setPrecisionTierStatus(
+    `${tier.label} filled in: ${changed}. ${(tier.notes || []).join(" ")} Click Save Parameters to keep them.`
+  );
+}
+
+function renderStructureAdvice(analysis, materialSettings) {
+  const box = document.getElementById("structure-advice");
+  if (!box) {
+    return;
+  }
+  const dimensionality = analysis?.dimensionality;
+  const magnetism = analysis?.magnetism;
+  if (!dimensionality || !magnetism) {
+    box.classList.add("hidden");
+    return;
+  }
+
+  const items = [];
+  const currentClass = String(materialSettings?.material_class || "bulk").toLowerCase();
+  const detectedClass = String(dimensionality.material_class || "bulk").toLowerCase();
+  const classMatches = detectedClass === currentClass
+    || (detectedClass === "2d" && currentClass === "slab");
+  if (!classMatches && detectedClass === "bulk") {
+    // Telling someone their deliberate slab is "really bulk" is the direction
+    // that can silently ruin a calculation, so it gets no one-click button.
+    items.push(`
+      <div class="advice-item">
+        <span class="advice-text">The largest gap in this cell is only ${escapeHtml(String(Math.max(...(dimensionality.vacuum_gaps || [0]))))} A
+          between atom centres, which is small for a ${escapeHtml(currentClass)}. If that is deliberate, ignore this;
+          otherwise check that your vacuum layer really made it into the POSCAR.</span>
+      </div>`);
+  } else if (!classMatches) {
+    items.push(`
+      <div class="advice-item">
+        <span class="advice-text"><b>This looks like a ${escapeHtml(detectedClass)} system</b>, but Material Class is set to
+          ${escapeHtml(currentClass)}. ${escapeHtml(dimensionality.reason)}</span>
+        <button type="button" class="ghost advice-apply" data-advice-apply="class"
+                data-advice-value="${escapeHtml(detectedClass)}">Set to ${escapeHtml(detectedClass)}</button>
+      </div>`);
+  } else {
+    items.push(`<div class="advice-item"><span class="advice-text">Geometry check: ${escapeHtml(dimensionality.reason)}</span></div>`);
+  }
+
+  const spinOn = Boolean(materialSettings?.spin_polarized);
+  if (magnetism.recommend_spin_polarized && !spinOn) {
+    items.push(`
+      <div class="advice-item">
+        <span class="advice-text"><b>Magnetic elements found.</b> ${escapeHtml(magnetism.reason)}
+          Any MAGMOM filled in here is a starting moment used to initialize the SCF, not a predicted moment.</span>
+        <button type="button" class="ghost advice-apply" data-advice-apply="spin">Turn on spin and fill starting moments</button>
+      </div>`);
+  } else if (magnetism.possible_species?.length && !spinOn) {
+    items.push(`<div class="advice-item"><span class="advice-text">${escapeHtml(magnetism.reason)}</span></div>`);
+  }
+
+  if (dimensionality.uncertain_kind === "wire") {
+    items.push(`
+      <div class="advice-item">
+        <span class="advice-text">Two directions have vacuum, so this is a wire or chain geometry. This tool has no
+          wire workflow and is treating it as bulk; the generated meshes sample the two vacuum directions as if they
+          were periodic. Set the meshes along those directions to 1 by hand.</span>
+      </div>`);
+  } else if (dimensionality.uncertain_kind === "borderline_gap") {
+    items.push(`
+      <div class="advice-item">
+        <span class="advice-text">The vacuum gap is close to the cutoff used to tell a slab from a bulk cell,
+          so treat this reading as a hint and confirm the Material Class yourself.</span>
+      </div>`);
+  }
+
+  box.innerHTML = `<p class="advice-title">Read from your POSCAR</p>${items.join("")}`;
+  box.classList.remove("hidden");
+  box.querySelectorAll("[data-advice-apply]").forEach((node) => {
+    node.addEventListener("click", () => {
+      if (node.dataset.adviceApply === "class") {
+        const select = document.getElementById("material-class");
+        if (select) {
+          select.value = node.dataset.adviceValue;
+          document.getElementById("material-class-help").textContent =
+            MATERIAL_CLASS_HELP[node.dataset.adviceValue] || MATERIAL_CLASS_HELP.bulk;
+          // Assigning .value fires no change event, so invalidate the tiers here:
+          // they were computed for the class the user just replaced.
+          select.dispatchEvent(new Event("change"));
+        }
+        node.textContent = "Applied - not saved yet";
+      } else if (node.dataset.adviceApply === "spin") {
+        const toggle = document.getElementById("material-spin-polarized");
+        if (toggle) {
+          toggle.checked = true;
+        }
+        const magmomField = document.getElementById("material-magmom");
+        const suggested = analysis?.magnetism?.suggested_magmom_text;
+        // Never discard moments the user typed or that came from metadata.
+        const existing = magmomField?.value || "";
+        if (magmomField && suggested && !hasNonzeroFloatList(existing)) {
+          magmomField.value = suggested;
+          node.textContent = "Spin on, starting moments filled - not saved yet";
+        } else {
+          node.textContent = "Spin on, your MAGMOM kept - not saved yet";
+        }
+      }
+      node.classList.add("advice-applied");
+    });
+  });
+}
+
 function renderMaterialPresets(presets) {
   const root = document.getElementById("material-presets");
   if (!presets.length) {
@@ -3059,6 +3273,9 @@ function applyMaterialPreset(presetId) {
     MATERIAL_CLASS_HELP[resolvedMaterialClass] || MATERIAL_CLASS_HELP.bulk;
   syncMaterialBandPathMode();
   applyPotcarProfileRecommendations();
+  // A preset rewrites the same fields a precision level owns, and setValue does
+  // not fire input events, so the badge has to be dropped explicitly.
+  clearPendingPrecisionTier("A material preset overwrote these values, so no precision level applies now.");
   document.getElementById("material-preset-status").textContent =
     hasNonzeroFloatList(preset.magmom_text)
       ? `Applied preset ${preset.label}. Kept material type as ${resolvedMaterialClass}. An initial MAGMOM guess was loaded; review it before saving.`
@@ -4720,6 +4937,7 @@ async function saveMaterialSettings() {
         band_path_text: document.getElementById("material-band-path-text")?.value || "",
         wallclock_seconds: Number(document.getElementById("material-wallclock").value || 43200),
         advanced_overrides_json: document.getElementById("material-overrides").value,
+        precision_tier: state.pendingPrecisionTier || "",
       }),
     });
     await applySelectedSystemDetail(payload.detail);
@@ -4835,6 +5053,38 @@ async function bootstrap() {
   await backendRefresh;
   attachProjectImportHandlers();
   updateProjectWizardState();
+
+  // A hand edit to any tier-controlled field means the form no longer matches
+  // the tier, so drop the badge rather than let it claim otherwise.
+  [
+    "material-encut",
+    "material-kmesh",
+    "material-dos-kmesh",
+    "material-phonon-kmesh",
+    "material-phonon-dos-kmesh",
+    "material-phonon-supercell",
+    "material-band-points",
+    "material-wallclock",
+  ].forEach((id) => {
+    document.getElementById(id)?.addEventListener("input", () => {
+      if (state.pendingPrecisionTier) {
+        clearPendingPrecisionTier("Values edited by hand. Pick a precision level again to recompute them from the cell.");
+      }
+    });
+  });
+
+  // The tiers are computed server-side from the SAVED material class and
+  // electronic type, so once either changes in the form the cards are stale.
+  ["material-class", "material-electronic-type"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", () => {
+      clearPendingPrecisionTier(
+        "Material class or electronic type changed. Save Parameters to recompute the levels for the new setting - the values shown on the cards are still for the saved one."
+      );
+      document.querySelectorAll("[data-precision-tier]").forEach((node) => {
+        node.classList.add("stale");
+      });
+    });
+  });
 
   const copyButton = document.getElementById("input-review-copy");
   if (copyButton) {

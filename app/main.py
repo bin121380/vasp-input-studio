@@ -53,6 +53,7 @@ from .materials import (
     file_generation_states,
     initialize_project_inputs,
     material_form_payload,
+    max_potcar_enmax,
     parse_band_conf_supercell,
     parse_structure_text,
     preview_files,
@@ -589,6 +590,7 @@ class MaterialSettingsRequest(BaseModel):
     band_path_text: str = ""
     wallclock_seconds: int = Field(default=43200, ge=3600, le=604800)
     advanced_overrides_json: str = ""
+    precision_tier: str = ""
 
 
 class PhononNacSettingsRequest(BaseModel):
@@ -2294,19 +2296,7 @@ def potcar_titles(path: Path) -> list[str]:
 
 
 def _max_potcar_enmax(path: Path) -> float | None:
-    if not path.exists():
-        return None
-    values: list[float] = []
-    pattern = re.compile(r"ENMAX\s*=\s*([0-9.]+)")
-    for line in path.read_text(errors="ignore").splitlines():
-        match = pattern.search(line)
-        if not match:
-            continue
-        try:
-            values.append(float(match.group(1)))
-        except ValueError:
-            continue
-    return max(values) if values else None
+    return max_potcar_enmax(path)
 
 
 def _merge_warnings(*groups: list[str]) -> list[str]:
