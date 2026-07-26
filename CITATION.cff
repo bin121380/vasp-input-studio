@@ -1,0 +1,34 @@
+cff-version: 1.2.0
+message: "If you use VASP Input Studio in your research, please cite it as below."
+title: "VASP Input Studio"
+type: software
+authors:
+  - name: "bin121380"
+repository-code: "https://github.com/bin121380/vasp-input-studio"
+license: MIT
+version: 0.0.5
+date-released: "2026-07-26"
+abstract: >-
+  A local web workbench for preparing, reviewing, and launching
+  VASP-style materials workflows, including input generation for
+  relax, SCF, DOS, band, elastic, charge, and phonon calculations.
+references:
+  - type: article
+    title: "Band structure diagram paths based on crystallography"
+    authors:
+      - family-names: Hinuma
+        given-names: Yoyo
+      - family-names: Pizzi
+        given-names: Giovanni
+      - family-names: Kumagai
+        given-names: Yu
+      - family-names: Oba
+        given-names: Fumiyasu
+      - family-names: Tanaka
+        given-names: Isao
+    journal: "Computational Materials Science"
+    volume: 128
+    start: 140
+    year: 2017
+    doi: 10.1016/j.commatsci.2016.10.015
+    notes: "SeekPath, used for k-path generation"

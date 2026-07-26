@@ -363,6 +363,10 @@ function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
+function prefersReducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 function splitBandSegments(points) {
   const segments = [];
   let current = [];
@@ -576,7 +580,7 @@ function setOverview(data) {
   document.getElementById("overview").innerHTML = `
     <div class="metric">
       <div class="metric-label">Workspace</div>
-      <div class="metric-value">${data.workspace_root}</div>
+      <div class="metric-value metric-path" title="${escapeHtml(data.workspace_root)}">${escapeHtml(data.workspace_root)}</div>
     </div>
     <div class="metric">
       <div class="metric-label">Systems</div>
@@ -846,7 +850,7 @@ function latticeMetricConfig(summary) {
     primitiveValue,
     showPrimitiveRow: hasDistinctConventional,
     note: summary.a_display_note || (hasDistinctConventional
-      ? `Primitive |a1| = ${formatMetric(primitiveValue, "A", 3)}`
+      ? `Primitive |a1| = ${formatMetric(primitiveValue, "Å", 3)}`
       : ""),
   };
 }
@@ -863,10 +867,10 @@ function renderSystems() {
     const chips = [];
     if (latticeInfo.displayValue !== null && latticeInfo.displayValue !== undefined) {
       const latticeLabel = latticeInfo.showPrimitiveRow ? "cubic a" : "a";
-      chips.push(`<span class="mini-chip">${latticeLabel} ${formatMetric(latticeInfo.displayValue, "A", 3)}</span>`);
+      chips.push(`<span class="mini-chip">${latticeLabel} ${formatMetric(latticeInfo.displayValue, "Å", 3)}</span>`);
     }
     if (item.summary?.density_g_cm3 !== null && item.summary?.density_g_cm3 !== undefined) {
-      chips.push(`<span class="mini-chip">rho ${formatMetric(item.summary.density_g_cm3, "g/cm^3", 3)}</span>`);
+      chips.push(`<span class="mini-chip">rho ${formatMetric(item.summary.density_g_cm3, "g/cm³", 3)}</span>`);
     }
     if (!chips.length) {
       chips.push(`<span class="mini-chip">No summary metrics yet</span>`);
@@ -1175,9 +1179,9 @@ function updateHero(detail) {
   document.getElementById("system-subtitle").textContent =
     `${composition} | ${atomsCount} atoms in the current cell.${quarantineNote}`;
   document.getElementById("hero-lattice-label").textContent = latticeInfo.displayLabel;
-  document.getElementById("hero-lattice").textContent = formatMetric(latticeInfo.displayValue, "A", 3);
+  document.getElementById("hero-lattice").textContent = formatMetric(latticeInfo.displayValue, "Å", 3);
   document.getElementById("hero-lattice-note").textContent = latticeInfo.note;
-  document.getElementById("hero-density").textContent = formatMetric(summary.density_g_cm3, "g/cm^3", 3);
+  document.getElementById("hero-density").textContent = formatMetric(summary.density_g_cm3, "g/cm³", 3);
   document.getElementById("hero-moment").textContent = formatMetric(summary.magnetic_moment_muB, "uB", 3);
   document.getElementById("hero-workflow").textContent = `${finishedCount} / ${steps.length} done`;
 }
@@ -1192,7 +1196,7 @@ function renderSummary(detail) {
     [latticeInfo.displayLabel, latticeInfo.displayValue, "A"],
     ...(latticeInfo.showPrimitiveRow ? [["Primitive |a1|", latticeInfo.primitiveValue, "A"]] : []),
     ["Volume", summary.volume_A3, "A^3"],
-    ["Density", summary.density_g_cm3, "g/cm^3"],
+    ["Density", summary.density_g_cm3, "g/cm³"],
     ["Moment", summary.magnetic_moment_muB, "uB"],
     ["Delta Hf", summary.formation_enthalpy_eV_per_atom, "eV/atom"],
     ["H wt%", summary.hydrogen_wt_percent, "%"],
@@ -2198,7 +2202,7 @@ async function openRuntimePreview(path) {
   }
   state.selectedFilePath = path;
   await renderFileSelector(state.selectedSystemDetail);
-  document.getElementById("file-select")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  document.getElementById("file-select")?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
   setFileStatus(
     `Loaded runtime artifact ${path}.${modeChanged ? " Switched to Expert Override so the Input Editor is visible." : ""}`
   );
@@ -2558,7 +2562,9 @@ function syncFlowMeta() {
 function setFlowView(flowName) {
   state.activeFlow = WORKFLOW_VIEWS[flowName] ? flowName : "overview";
   document.querySelectorAll("[data-flow-target]").forEach((button) => {
-    button.classList.toggle("active", button.dataset.flowTarget === state.activeFlow);
+    const selected = button.dataset.flowTarget === state.activeFlow;
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-selected", selected ? "true" : "false");
   });
   syncFlowPanels();
   syncFlowMeta();
@@ -4725,7 +4731,7 @@ async function saveMaterialSettings() {
     setMaterialFormStatus(
       `Saved parameters at ${payload.saved_at}. Regenerated ${payload.generated_files.length} derived files.${potcarNote} Review the full generated input text below before submitting jobs.`
     );
-    document.getElementById("input-review-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById("input-review-panel")?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
   } catch (error) {
     setMaterialFormStatus(`Save failed: ${error.message}`, true);
   }
@@ -4829,6 +4835,39 @@ async function bootstrap() {
   await backendRefresh;
   attachProjectImportHandlers();
   updateProjectWizardState();
+
+  const copyButton = document.getElementById("input-review-copy");
+  if (copyButton) {
+    copyButton.addEventListener("click", async () => {
+      const text = document.getElementById("input-review-text")?.textContent || "";
+      if (!text.trim()) {
+        return;
+      }
+      let copied = false;
+      try {
+        await navigator.clipboard.writeText(text);
+        copied = true;
+      } catch (error) {
+        const scratch = document.createElement("textarea");
+        scratch.value = text;
+        scratch.setAttribute("readonly", "");
+        scratch.style.position = "fixed";
+        scratch.style.opacity = "0";
+        document.body.appendChild(scratch);
+        scratch.select();
+        try {
+          copied = document.execCommand("copy");
+        } catch (fallbackError) {
+          copied = false;
+        }
+        scratch.remove();
+      }
+      copyButton.textContent = copied ? "Copied" : "Copy failed";
+      setTimeout(() => {
+        copyButton.textContent = "Copy all";
+      }, 1600);
+    });
+  }
 
   document.getElementById("refresh-systems").addEventListener("click", async () => {
     await refreshSystemsAndProfiles();

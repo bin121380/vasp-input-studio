@@ -62,7 +62,7 @@
             </div>
           </div>
           <div class="systems-toolbar">
-            <input id="systems-search" type="search" placeholder="Search systems">
+            <input id="systems-search" type="search" placeholder="Search systems" aria-label="Search systems">
             <label class="systems-toggle">
               <input id="systems-hide-utility" type="checkbox" checked>
               <span>Hide test/demo</span>
@@ -118,17 +118,17 @@
               </div>
               <span id="workflow-chip" class="chip primary">overview</span>
             </div>
-            <div id="workflow-tabs" class="workflow-tabs">
-              <button type="button" class="workflow-tab active" data-flow-target="overview">Overview</button>
-              <button type="button" class="workflow-tab" data-flow-target="setup">Setup</button>
-              <button type="button" class="workflow-tab" data-flow-target="relax">Relax</button>
-              <button type="button" class="workflow-tab" data-flow-target="scf">SCF</button>
-              <button type="button" class="workflow-tab" data-flow-target="dos">DOS</button>
-              <button type="button" class="workflow-tab beginner-advanced" data-flow-target="converge">Converge</button>
-              <button type="button" class="workflow-tab" data-flow-target="band">Band</button>
-              <button type="button" class="workflow-tab" data-flow-target="elastic">Elastic</button>
-              <button type="button" class="workflow-tab" data-flow-target="charge">Charge</button>
-              <button type="button" class="workflow-tab" data-flow-target="phonon">Phonon</button>
+            <div id="workflow-tabs" class="workflow-tabs" role="tablist" aria-label="Workflow stages">
+              <button type="button" role="tab" aria-selected="true" class="workflow-tab active" data-flow-target="overview">Overview</button>
+              <button type="button" role="tab" aria-selected="false" class="workflow-tab" data-flow-target="setup">Setup</button>
+              <button type="button" role="tab" aria-selected="false" class="workflow-tab" data-flow-target="relax">Relax</button>
+              <button type="button" role="tab" aria-selected="false" class="workflow-tab" data-flow-target="scf">SCF</button>
+              <button type="button" role="tab" aria-selected="false" class="workflow-tab" data-flow-target="dos">DOS</button>
+              <button type="button" role="tab" aria-selected="false" class="workflow-tab beginner-advanced" data-flow-target="converge">Converge</button>
+              <button type="button" role="tab" aria-selected="false" class="workflow-tab" data-flow-target="band">Band</button>
+              <button type="button" role="tab" aria-selected="false" class="workflow-tab" data-flow-target="elastic">Elastic</button>
+              <button type="button" role="tab" aria-selected="false" class="workflow-tab" data-flow-target="charge">Charge</button>
+              <button type="button" role="tab" aria-selected="false" class="workflow-tab" data-flow-target="phonon">Phonon</button>
             </div>
           </div>
 
@@ -521,6 +521,7 @@
                 <div class="viewer-toolbar">
                   <div class="viewer-lights"><span></span><span></span><span></span></div>
                   <span class="chip">full input bundle</span>
+                  <button type="button" id="input-review-copy" class="ghost viewer-copy">Copy all</button>
                 </div>
                 <pre id="input-review-text" class="viewer"></pre>
               </div>
@@ -535,7 +536,7 @@
                 </div>
               </div>
               <div class="editor-actions">
-                <select id="file-select"></select>
+                <select id="file-select" aria-label="Select input file"></select>
                 <div class="editor-buttons">
                   <button id="generate-file" class="ghost">Auto Generate</button>
                   <button id="reload-file" class="ghost">Reload</button>

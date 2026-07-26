@@ -17,6 +17,7 @@ INCLUDE_PATHS=(
   "resources"
   "README.md"
   "LICENSE"
+  "CITATION.cff"
   "INSTALLATION_TROUBLESHOOTING.md"
   "VERSION"
   "requirements.txt"

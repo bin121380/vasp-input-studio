@@ -8,6 +8,7 @@
 *.md text eol=lf
 *.json text eol=lf
 
+*.woff2 binary
 *.png binary
 *.jpg binary
 *.jpeg binary

@@ -723,10 +723,22 @@ def lineage_path(system_dir: Path) -> Path:
     return system_dir / LINEAGE_FILENAME
 
 
+_FINGERPRINT_CACHE: dict[Path, tuple[int, int, str]] = {}
+
+
 def _structure_fingerprint(path: Path) -> str | None:
-    if not path.exists() or not path.is_file():
+    try:
+        stat = path.stat()
+    except OSError:
         return None
-    return _sha256_bytes(path.read_bytes())
+    if not path.is_file():
+        return None
+    cached = _FINGERPRINT_CACHE.get(path)
+    if cached is not None and cached[0] == stat.st_mtime_ns and cached[1] == stat.st_size:
+        return cached[2]
+    digest = _sha256_bytes(path.read_bytes())
+    _FINGERPRINT_CACHE[path] = (stat.st_mtime_ns, stat.st_size, digest)
+    return digest
 
 
 def _composition_formula_from_structure(structure: dict[str, Any] | None) -> str | None:
@@ -1221,10 +1233,14 @@ def read_limited_text_payload(path: Path, limit: int = UI_FILE_PREVIEW_MAX_BYTES
 
 
 def read_text_tail(path: Path, limit: int = 8000) -> str:
-    if not path.exists():
+    try:
+        with path.open("rb") as handle:
+            handle.seek(0, os.SEEK_END)
+            size = handle.tell()
+            handle.seek(max(0, size - limit))
+            return handle.read().decode(errors="ignore")
+    except OSError:
         return ""
-    data = path.read_text(errors="ignore")
-    return data[-limit:]
 
 
 def latest_matching_file(base: Path, pattern: str) -> Path | None:
@@ -7678,7 +7694,7 @@ async def band_export(system_name: str, kind: str = Query("data")) -> FileRespon
 
 
 @app.post("/api/systems/{system_name}/dos/pdos")
-async def generate_dos_pdos(system_name: str) -> dict[str, Any]:
+def generate_dos_pdos(system_name: str) -> dict[str, Any]:
     system_dir = resolve_system_dir(system_name)
     result = generate_element_pdos(system_dir)
     return {
@@ -7688,7 +7704,7 @@ async def generate_dos_pdos(system_name: str) -> dict[str, Any]:
 
 
 @app.post("/api/systems/{system_name}/relax/primitive")
-async def generate_relax_primitive(system_name: str) -> dict[str, Any]:
+def generate_relax_primitive(system_name: str) -> dict[str, Any]:
     system_dir = resolve_system_dir(system_name)
     result = generate_primitive_cell(system_dir)
     return {
@@ -7704,7 +7720,7 @@ async def aiida_system_recipe(system_name: str) -> dict[str, Any]:
 
 
 @app.post("/api/phonon/nac/save")
-async def save_phonon_nac_settings(payload: PhononNacSettingsRequest) -> dict[str, Any]:
+def save_phonon_nac_settings(payload: PhononNacSettingsRequest) -> dict[str, Any]:
     system_dir = resolve_system_dir(payload.system)
     try:
         result = _update_phonon_nac_settings(system_dir, payload.enabled, payload.q_direction_text)
@@ -7717,7 +7733,7 @@ async def save_phonon_nac_settings(payload: PhononNacSettingsRequest) -> dict[st
 
 
 @app.post("/api/phonon/nac/prepare-charge")
-async def prepare_charge_for_phonon_nac(payload: SystemOnlyRequest) -> dict[str, Any]:
+def prepare_charge_for_phonon_nac(payload: SystemOnlyRequest) -> dict[str, Any]:
     system_dir = resolve_system_dir(payload.system)
     try:
         result = _prepare_charge_for_born(system_dir)
@@ -7730,7 +7746,7 @@ async def prepare_charge_for_phonon_nac(payload: SystemOnlyRequest) -> dict[str,
 
 
 @app.post("/api/phonon/nac/build-born")
-async def build_phonon_born(payload: SystemOnlyRequest) -> dict[str, Any]:
+def build_phonon_born(payload: SystemOnlyRequest) -> dict[str, Any]:
     system_dir = resolve_system_dir(payload.system)
     try:
         result = _build_born_from_charge(system_dir)
@@ -7765,7 +7781,7 @@ async def file_preview(system: str, path: str = Query(...), expert: bool = Query
 
 
 @app.post("/api/file/save")
-async def save_file(payload: SaveFileRequest) -> dict[str, Any]:
+def save_file(payload: SaveFileRequest) -> dict[str, Any]:
     system_dir = resolve_system_dir(payload.system)
 
     full_path = editable_file_path(system_dir, payload.path, expert_override=payload.expert_override)
@@ -7824,7 +7840,7 @@ async def save_file(payload: SaveFileRequest) -> dict[str, Any]:
 
 
 @app.post("/api/file/generate")
-async def generate_file(payload: GenerateFileRequest) -> dict[str, Any]:
+def generate_file(payload: GenerateFileRequest) -> dict[str, Any]:
     system_dir = resolve_system_dir(payload.system)
     try:
         generated = generate_input_content(system_dir, payload.path)
@@ -7850,7 +7866,7 @@ async def material_settings(system: str) -> dict[str, Any]:
 
 
 @app.post("/api/material-settings/save")
-async def save_material_settings_endpoint(payload: MaterialSettingsRequest) -> dict[str, Any]:
+def save_material_settings_endpoint(payload: MaterialSettingsRequest) -> dict[str, Any]:
     system_dir = resolve_system_dir(payload.system)
     backend = aiida_inventory(settings.aiida_profile_name)
     try:
