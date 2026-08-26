@@ -7,7 +7,10 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
 
-import fcntl
+try:
+    import fcntl
+except ImportError:
+    fcntl = None  # Windows compatibility
 
 
 def read_json(path: Path, default: Any) -> Any:
@@ -81,8 +84,10 @@ def file_lock(path: Path) -> Iterator[None]:
     lock_path = path.with_name(f"{path.name}.lock")
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with lock_path.open("a+", encoding="utf-8") as handle:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        if fcntl is not None:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
         try:
             yield
         finally:
-            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            if fcntl is not None:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
