@@ -4700,7 +4700,7 @@ def dos_visualization(
             "energy_reference": "E - E_F (eV)",
             "density_reference": "states/eV",
             "source_step": source_step,
-            "source_run_dir": str(run_dir.relative_to(system_dir)),
+            "source_run_dir": run_dir.relative_to(system_dir).as_posix(),
             "mirrored_spin": False,
             "artifacts": _dos_artifacts(run_dir),
         }
@@ -4748,7 +4748,7 @@ def dos_visualization(
         "energy_reference": "E - E_F (eV)",
         "density_reference": "states/eV",
         "source_step": source_step,
-        "source_run_dir": str(run_dir.relative_to(system_dir)),
+        "source_run_dir": run_dir.relative_to(system_dir).as_posix(),
         "artifacts": _dos_artifacts(run_dir),
         **parsed,
         **(projected or {}),
@@ -4761,10 +4761,10 @@ def _pdos_preview_paths(system_dir: Path, run_dir: Path | None) -> list[str]:
     paths: list[str] = []
     for pattern in ("PDOS_*.dat", "IPDOS_*.dat"):
         for path in sorted(run_dir.glob(pattern), key=lambda item: item.name):
-            paths.append(str(path.relative_to(system_dir)))
+            paths.append(path.relative_to(system_dir).as_posix())
     log_path = run_dir / "vaspkit_pdos.log"
     if _nonempty(log_path):
-        paths.append(str(log_path.relative_to(system_dir)))
+        paths.append(log_path.relative_to(system_dir).as_posix())
     return paths
 
 
@@ -4823,14 +4823,14 @@ def dos_artifacts_payload(
     return {
         "status": status,
         "source_step": source_step,
-        "source_run_dir": str(run_dir.relative_to(system_dir)),
+        "source_run_dir": run_dir.relative_to(system_dir).as_posix(),
         "can_generate_pdos": can_generate,
         "pdos_files": pdos_files,
         "ipdos_files": ipdos_files,
         "preview_paths": preview_paths,
         "preview_path": pdos_files[0] if pdos_files else (preview_paths[0] if preview_paths else None),
         "elements": elements,
-        "log_path": str((run_dir / "vaspkit_pdos.log").relative_to(system_dir)) if (run_dir / "vaspkit_pdos.log").exists() else None,
+        "log_path": (run_dir / "vaspkit_pdos.log").relative_to(system_dir).as_posix() if (run_dir / "vaspkit_pdos.log").exists() else None,
         "note": note,
     }
 
@@ -6760,7 +6760,7 @@ def job_result_context_payload(job: dict[str, Any]) -> dict[str, Any]:
         "step": job.get("step"),
         "available": run_dir is not None,
         "source_kind": source_kind,
-        "source_run_dir": str(run_dir.relative_to(system_dir)) if run_dir is not None else None,
+        "source_run_dir": run_dir.relative_to(system_dir).as_posix() if run_dir is not None else None,
         "source_note": source_note,
         "timestamp": timestamp,
         "result_highlights": [],
@@ -7440,7 +7440,7 @@ def launch_local_step(
         "state": "running",
         "created_at": now_iso(),
         "launcher_log": str(launcher_log),
-        "target_log": str(attempt_dir / "log"),
+        "target_log": (attempt_dir / "log").as_posix(),
         "attempt_dir": _relative_system_path(system_dir, attempt_dir),
         "warnings": _merge_warnings(fallback_warnings, gate["warnings"]),
         "risk_level": "review" if gate["risk_level"] == "ok" and fallback_warnings else gate["risk_level"],

@@ -72,7 +72,7 @@ class RunManifestTests(unittest.TestCase):
         self.assertEqual(payload["input_snapshots"]["metadata.json"]["content"], '{"formula": "Si", "electronic_type": "semiconductor"}\n')
         self.assertEqual(payload["potcar_summary"]["titles"], ["Si"])
         self.assertEqual(payload["potcar_summary"]["max_enmax"], 400.0)
-        self.assertEqual(payload["potcar_summary"]["sha256"], hashlib.sha256(potcar_text.encode("utf-8")).hexdigest())
+        self.assertEqual(payload["potcar_summary"]["sha256"], hashlib.sha256((self.system_dir / "POTCAR").read_bytes()).hexdigest())
         self.assertEqual(payload["effective_params"][0]["source_kind"], "platform_default")
         self.assertEqual(payload["effective_params"][1]["source_kind"], "derived_dos_mesh")
 

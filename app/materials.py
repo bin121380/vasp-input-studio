@@ -276,7 +276,7 @@ def _digest_text(text: str) -> str:
 def _file_digest(path: Path) -> str:
     if not path.exists() or not path.is_file():
         return ""
-    return _digest_bytes(path.read_bytes())
+    return _digest_text(path.read_text(encoding="utf-8"))
 
 
 def _metadata_digest(path: Path) -> str:
