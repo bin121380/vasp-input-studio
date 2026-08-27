@@ -1,6 +1,6 @@
 /* Self-hosted fonts (SIL OFL 1.1, license texts in static/fonts/) */
 @font-face {
-  font-family: var(--font-sans);
+  font-family: "IBM Plex Sans";
   font-style: normal;
   font-weight: 400;
   font-display: swap;
@@ -8,7 +8,7 @@
 }
 
 @font-face {
-  font-family: var(--font-sans);
+  font-family: "IBM Plex Sans";
   font-style: normal;
   font-weight: 600;
   font-display: swap;
@@ -16,7 +16,7 @@
 }
 
 @font-face {
-  font-family: var(--font-heading);
+  font-family: "Space Grotesk";
   font-style: normal;
   font-weight: 500;
   font-display: swap;
@@ -24,7 +24,7 @@
 }
 
 @font-face {
-  font-family: var(--font-heading);
+  font-family: "Space Grotesk";
   font-style: normal;
   font-weight: 700;
   font-display: swap;
@@ -32,7 +32,7 @@
 }
 
 @font-face {
-  font-family: var(--font-mono);
+  font-family: "IBM Plex Mono";
   font-style: normal;
   font-weight: 400;
   font-display: swap;
@@ -218,6 +218,7 @@ summary:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 1.15rem;
+  min-width: 0;
 }
 
 .sidebar .panel + .panel,
@@ -372,6 +373,11 @@ summary:focus-visible {
   height: 140px;
   background: radial-gradient(circle, rgba(37, 99, 235, 0.06) 0%, transparent 70%);
   pointer-events: none;
+}
+
+.hero-copy {
+  position: relative;
+  z-index: 1;
 }
 
 .eyebrow {
@@ -583,12 +589,17 @@ summary:focus-visible {
 }
 
 .hidden,
-.flow-hidden {
+.flow-hidden,
+.page-view.hidden {
   display: none !important;
 }
 
 .panel.tall {
   min-height: 100%;
+}
+
+.compact-workflow-status {
+  font-size: 0.84rem;
 }
 
 /* Card inner grids */
@@ -673,6 +684,18 @@ button.step-card.active {
 .system-card.active strong,
 .job-card.active strong {
   color: var(--accent-deep);
+}
+
+.system-card-head,
+.system-card-subhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.system-card-subhead {
+  margin-top: 0.35rem;
 }
 
 .system-stats,
@@ -851,6 +874,10 @@ button.ghost.danger:hover {
   background: #b91c1c;
 }
 
+.job-control-row {
+  margin-bottom: 0.7rem;
+}
+
 /* Forms & Inputs */
 .form-grid {
   display: grid;
@@ -860,6 +887,40 @@ button.ghost.danger:hover {
 
 .form-grid .full {
   grid-column: span 2;
+}
+
+.incar-form-grid {
+  gap: 0.75rem;
+}
+
+.incar-form-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.incar-form-actions button {
+  flex: 1;
+}
+
+.mapping-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.mapping-item {
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-soft);
+  background: var(--surface-muted);
+}
+
+.mapping-item > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
 }
 
 label {
@@ -925,6 +986,15 @@ textarea {
   display: flex;
   gap: 0.55rem;
   flex-wrap: wrap;
+}
+
+.list {
+  overflow: auto;
+}
+
+.jobs-scroll {
+  max-height: 31rem;
+  padding-right: 0.2rem;
 }
 
 .editor-actions {
@@ -1133,6 +1203,13 @@ button.tier-card.selected {
   color: var(--text);
 }
 
+.tier-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .tier-tagline {
   font-size: 0.76rem;
   color: var(--muted);
@@ -1187,6 +1264,27 @@ button.tier-card.selected {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text);
+}
+
+.advanced-project-template details {
+  padding: 0.8rem 0.95rem;
+  border-radius: var(--radius-soft);
+  border: 1px solid var(--line);
+  background: var(--surface-muted);
+}
+
+.advanced-project-template summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+}
+
+.advanced-project-template summary::-webkit-details-marker {
+  display: none;
+}
+
+.advanced-project-template details[open] summary {
+  margin-bottom: 0.65rem;
 }
 
 /* ==========================================================================
@@ -1343,6 +1441,23 @@ button.advice-apply {
   gap: 0.95rem;
 }
 
+.band-plot-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.45rem 1rem;
+}
+
+.band-export-actions,
+.band-artifact-strip,
+.band-spin-legend,
+.band-spin-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.9rem;
+}
+
 .band-plot-frame,
 .band-plot-empty {
   padding: 1rem;
@@ -1393,6 +1508,12 @@ button.advice-apply {
 
 .band-series-up { stroke: #2563eb; }
 .band-series-down { stroke: #0284c7; }
+.dos-series {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 .dos-series-total { stroke: #059669; }
 .dos-series-up { stroke: #2563eb; }
 .dos-series-down { stroke: #0284c7; }
@@ -1548,7 +1669,7 @@ body.advanced-mode [data-complexity="beginner-only"] {
 
 @media (max-width: 1200px) {
   .shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .sidebar {
@@ -1615,5 +1736,13 @@ body.advanced-mode [data-complexity="beginner-only"] {
 
   .structure-canvas {
     height: 300px;
+  }
+
+  .editor-actions,
+  .editor-buttons,
+  .incar-form-actions,
+  .hero-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

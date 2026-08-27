@@ -122,7 +122,10 @@ class SecurityBoundaryTests(unittest.TestCase):
         systems_dir.mkdir(parents=True, exist_ok=True)
         outside = self.base / "outside"
         outside.mkdir(parents=True, exist_ok=True)
-        (systems_dir / "escape").symlink_to(outside)
+        try:
+            (systems_dir / "escape").symlink_to(outside, target_is_directory=True)
+        except OSError as exc:
+            self.skipTest(f"directory symlinks are unavailable: {exc}")
 
         with patch.object(main, "SYSTEMS_DIR", systems_dir):
             with self.assertRaises(HTTPException) as ctx:

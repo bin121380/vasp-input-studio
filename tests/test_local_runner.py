@@ -32,6 +32,7 @@ def runner_env(**overrides: str) -> dict[str, str]:
     return env
 
 
+@unittest.skipIf(os.name == "nt", "the bundled local runner requires a POSIX shell")
 class LocalRunnerTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tempdir = tempfile.TemporaryDirectory(prefix="vasp-studio-local-runner-")
